@@ -1,0 +1,4 @@
+This is a secret file that will be split into three parts and encrypted.
+HDFS simulation in progress.
+Part 1, Part 2, and Part 3 should be stored in separate folders.
+AES-256-GCM ensures integrity and confidentiality.

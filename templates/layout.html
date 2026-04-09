@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SaaS Cloud HDFS - Secure Distributed Cloud Storage with AES-256 Encryption and AWS S3 Integration">
+    <title>{% block title %}SaaS Cloud HDFS{% endblock %} | Secure Distributed Storage</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- Flash Messages -->
+    <div class="flash-messages" id="flashMessages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Navigation -->
+    <nav class="glass-panel">
+        <div class="logo">
+            <i data-lucide="cloud-lightning" style="width: 24px; height: 24px;"></i>
+            SaaS Cloud HDFS
+        </div>
+        <div class="nav-links">
+            {% if session.user_id %}
+                <div class="nav-user">
+                    <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+                    <strong>{{ session.username }}</strong>
+                    <span class="badge badge-{{ 'warning' if session.role == 'admin' else 'primary' }}">
+                        {{ 'admin' if session.role == 'admin' else 'client' }}
+                    </span>
+                </div>
+                {% if session.role == 'admin' %}
+                    <a href="{{ url_for('admin_dashboard') }}">
+                        <i data-lucide="shield" style="width: 14px; height: 14px; vertical-align: middle;"></i>
+                        Admin Console
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('user_dashboard') }}">
+                        <i data-lucide="hard-drive" style="width: 14px; height: 14px; vertical-align: middle;"></i>
+                        My Storage
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">
+                    <i data-lucide="log-out" style="width: 14px; height: 14px;"></i> Logout
+                </a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Sign In</a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Get Started</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        &copy; 2026 SaaS Cloud HDFS &mdash; AES-256 Encrypted &middot; 3-Way Distributed
+    </footer>
+
+    <!-- Modal Container -->
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal glass-panel" id="modalContent"></div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="delete-overlay" id="deleteOverlay" onclick="if(event.target===this)cancelDelete()">
+        <div class="delete-modal glass-panel">
+            <div class="delete-modal-icon">
+                <i data-lucide="alert-triangle" style="width: 28px; height: 28px;"></i>
+            </div>
+            <div class="delete-modal-title">Delete File</div>
+            <div class="delete-modal-message">
+                This action cannot be undone. The file and all its encrypted chunks will be permanently removed from every storage node.
+            </div>
+            <div class="delete-modal-filename" id="deleteFileName">
+                <i data-lucide="file-x"></i>
+                <span id="deleteFileNameText">filename.txt</span>
+            </div>
+            <div class="delete-modal-warning">
+                <i data-lucide="alert-circle"></i>
+                All 3 encrypted chunks will be purged from all storage nodes.
+            </div>
+            <div class="delete-modal-actions">
+                <button class="btn btn-cancel" onclick="cancelDelete()" id="deleteCancelBtn">
+                    Cancel
+                </button>
+                <button class="btn btn-delete-confirm" onclick="executeDelete()" id="deleteConfirmBtn">
+                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                    Delete Forever
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Auto-dismiss flash messages
+        setTimeout(() => {
+            document.querySelectorAll('.flash').forEach(el => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 5000);
+
+        // ── General Modal ──────────────────────────────
+        function openModal(content) {
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('modalOverlay').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        // ── Delete Confirmation Modal ──────────────────
+        let pendingDeleteForm = null;
+
+        function confirmDelete(formElement, fileName, isAdmin) {
+            pendingDeleteForm = formElement;
+            document.getElementById('deleteFileNameText').textContent = fileName;
+
+            // Update title for admin
+            const titleEl = document.querySelector('.delete-modal-title');
+            if (isAdmin) {
+                titleEl.textContent = 'Purge Object';
+            } else {
+                titleEl.textContent = 'Delete File';
+            }
+
+            document.getElementById('deleteOverlay').classList.add('active');
+            lucide.createIcons();
+
+            // Focus the cancel button for keyboard accessibility
+            setTimeout(() => {
+                document.getElementById('deleteCancelBtn').focus();
+            }, 100);
+        }
+
+        function cancelDelete() {
+            document.getElementById('deleteOverlay').classList.remove('active');
+            pendingDeleteForm = null;
+        }
+
+        function executeDelete() {
+            if (pendingDeleteForm) {
+                pendingDeleteForm.submit();
+            }
+        }
+
+        // ESC to close any modal
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeModal();
+                cancelDelete();
+            }
+        });
+
+        // ── File Info Modal ────────────────────────────
+        async function showFileInfo(fileId) {
+            try {
+                const res = await fetch(`/api/file-info/${fileId}`);
+                const data = await res.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                const f = data.file;
+                const parts = data.parts;
+
+                let chunksHTML = parts.map((p, i) => `
+                    <div class="chunk-block">
+                        <div class="chunk-block-header">Part ${p.order}</div>
+                        <div class="chunk-block-node">${p.node.toUpperCase()}</div>
+                        <div class="chunk-block-size">${p.encrypted_size_display}</div>
+                        <div class="chunk-block-s3">
+                            <span class="badge badge-success">
+                                💾 Distributed
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+
+                openModal(`
+                    <div class="modal-header">
+                        <div class="modal-title">
+                            <i data-lucide="file-search" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 0.25rem;"></i>
+                            ${f.name}
+                        </div>
+                        <button class="modal-close" onclick="closeModal()">
+                            <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                        </button>
+                    </div>
+
+                    <div class="modal-info-grid">
+                        <div class="modal-info-item">
+                            <div class="modal-info-label">Original Size</div>
+                            <div class="modal-info-value">${f.size_display}</div>
+                        </div>
+                        <div class="modal-info-item">
+                            <div class="modal-info-label">Storage Mode</div>
+                            <div class="modal-info-value">${f.storage_mode.toUpperCase()}</div>
+                        </div>
+                        <div class="modal-info-item">
+                            <div class="modal-info-label">Chunks</div>
+                            <div class="modal-info-value">${parts.length} Parts</div>
+                        </div>
+                        <div class="modal-info-item">
+                            <div class="modal-info-label">Uploaded</div>
+                            <div class="modal-info-value" style="font-size: 0.8rem;">${f.upload_time}</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1rem;">
+                        <div class="modal-info-label" style="margin-bottom: 0.5rem;">SHA-256 INTEGRITY HASH</div>
+                        <div class="file-id-badge" style="word-break: break-all; font-size: 0.7rem; padding: 0.5rem;">
+                            ${f.hash || 'N/A'}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="modal-info-label" style="margin-bottom: 0.5rem;">CHUNK DISTRIBUTION</div>
+                        <div class="chunk-visual">${chunksHTML}</div>
+                    </div>
+                `);
+            } catch (err) {
+                console.error('Failed to load file info:', err);
+            }
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

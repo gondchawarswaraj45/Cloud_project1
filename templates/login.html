@@ -1,0 +1,77 @@
+{% extends 'layout.html' %}
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card glass-panel">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-glow), var(--accent-glow)); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                <i data-lucide="lock" style="width: 24px; height: 24px; color: var(--primary);"></i>
+            </div>
+            <h1 class="auth-title">Welcome Back</h1>
+            <p class="auth-subtitle">Access your encrypted cloud storage</p>
+        </div>
+
+        <form action="{{ url_for('login') }}" method="POST">
+            <!-- Role Selector -->
+            <div class="role-selector">
+                <label class="role-option active" id="roleUser">
+                    <input type="radio" name="role" value="user" checked onchange="switchRole('user')">
+                    <i data-lucide="user" style="width: 18px; height: 18px;"></i>
+                    <span>Client</span>
+                </label>
+                <label class="role-option" id="roleAdmin">
+                    <input type="radio" name="role" value="admin" onchange="switchRole('admin')">
+                    <i data-lucide="shield" style="width: 18px; height: 18px;"></i>
+                    <span>Administrator</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" name="username" id="username" class="form-control"
+                       placeholder="Enter your username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password" class="form-control"
+                       placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.85rem; font-size: 0.95rem;">
+                <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Don't have an account? <a href="{{ url_for('register') }}">Create one</a>
+        </div>
+
+        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--glass-border); text-align: center;">
+            <div style="display: flex; justify-content: center; gap: 1.5rem; color: var(--text-muted); font-size: 0.75rem;">
+                <span style="display: flex; align-items: center; gap: 0.3rem;">
+                    <i data-lucide="shield-check" style="width: 12px; height: 12px; color: var(--success);"></i>
+                    AES-256
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.3rem;">
+                    <i data-lucide="split" style="width: 12px; height: 12px; color: var(--primary);"></i>
+                    3-Way Split
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.3rem;">
+                    <i data-lucide="cloud" style="width: 12px; height: 12px; color: var(--accent);"></i>
+                    Distributed
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchRole(role) {
+    document.getElementById('roleUser').classList.toggle('active', role === 'user');
+    document.getElementById('roleAdmin').classList.toggle('active', role === 'admin');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'layout.html' %}
+{% block title %}My Storage{% endblock %}
+
+{% block content %}
+<div class="page-header animate-fadeup">
+    <div class="page-title">
+        <div class="page-title-icon">
+            <i data-lucide="hard-drive" style="width: 22px; height: 22px;"></i>
+        </div>
+        <div>
+            <h1 style="font-size: 1.5rem;">My Cloud Storage</h1>
+            <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-top: 0.15rem;">
+                Distributed & Encrypted File Management
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card glass-panel stat-primary animate-fadeup animate-fadeup-1">
+        <div class="stat-header">
+            <div class="stat-label">Total Files</div>
+            <div class="stat-icon icon-primary"><i data-lucide="files" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">{{ files|length }}</div>
+        <div class="stat-detail">Uploaded objects</div>
+    </div>
+    <div class="stat-card glass-panel stat-success animate-fadeup animate-fadeup-2">
+        <div class="stat-header">
+            <div class="stat-label">Storage Used</div>
+            <div class="stat-icon icon-success"><i data-lucide="database" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">{{ total_size|filesize }}</div>
+        <div class="stat-detail">Across 3 nodes</div>
+    </div>
+    <div class="stat-card glass-panel stat-accent animate-fadeup animate-fadeup-3">
+        <div class="stat-header">
+            <div class="stat-label">Encryption</div>
+            <div class="stat-icon icon-accent"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">AES-256</div>
+        <div class="stat-detail">GCM authenticated</div>
+    </div>
+    <div class="stat-card glass-panel stat-warning animate-fadeup animate-fadeup-4">
+        <div class="stat-header">
+            <div class="stat-label">Data Nodes</div>
+            <div class="stat-icon icon-warning"><i data-lucide="server" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">3</div>
+        <div class="stat-detail">Operational</div>
+    </div>
+</div>
+
+<div class="upload-section glass-panel animate-fadeup" style="padding: 1.5rem 2rem;">
+    <h3>
+        <i data-lucide="upload-cloud" style="width: 18px; height: 18px; color: var(--primary);"></i>
+        Upload File
+    </h3>
+    <form id="uploadForm" action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
+        <label for="fileInput" class="dropzone" id="dropzone">
+            <div class="dropzone-icon">
+                <i data-lucide="upload" style="width: 24px; height: 24px;"></i>
+            </div>
+            <div class="dropzone-title">Click or Drag & Drop to Upload</div>
+            <div class="dropzone-subtitle">Max. 50MB per file — any format supported</div>
+            <div class="dropzone-features">
+                <span class="dropzone-feature"><i data-lucide="scissors"></i> Split into 3 parts</span>
+                <span class="dropzone-feature"><i data-lucide="lock"></i> AES-256 encrypted</span>
+                <span class="dropzone-feature"><i data-lucide="cloud"></i> Distributed storage</span>
+            </div>
+            <input type="file" name="file" id="fileInput" style="display: none;">
+        </label>
+    </form>
+</div>
+
+<div class="upload-progress" id="uploadProgress">
+    <div class="upload-progress-card">
+        <div class="spinner"></div>
+        <h3>Processing your file...</h3>
+        <p>Splitting → Encrypting → Distributing to nodes</p>
+    </div>
+</div>
+
+<div class="files-section glass-panel animate-fadeup" style="padding: 1.5rem 2rem;">
+    <div class="section-header">
+        <div class="section-title">
+            <i data-lucide="folder-open" style="width: 18px; height: 18px; color: var(--primary);"></i>
+            Your Secure Files
+        </div>
+        <span class="section-badge">{{ files|length }} file{{ 's' if files|length != 1 }}</span>
+    </div>
+
+    {% if files %}
+    <table class="data-table" id="filesTable">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Size</th>
+                <th>Identifier</th>
+                <th>Uploaded</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>
+                    <div class="file-name">
+                        <div class="file-icon"><i data-lucide="file-text" style="width: 16px; height: 16px;"></i></div>
+                        <div>{{ file.original_name }}</div>
+                    </div>
+                </td>
+                <td><span style="font-weight: 600;">{{ file.file_size|filesize }}</span></td>
+                <td><span class="file-id-badge">{{ file.file_identifier }}</span></td>
+                <td style="color: var(--text-muted); font-size: 0.825rem;">{{ file.upload_time }}</td>
+                <td>
+                    <div class="file-actions">
+                        <button class="btn btn-ghost btn-sm" onclick="showFileInfo({{ file.id }})" title="View Details">
+                            <i data-lucide="info" style="width: 14px; height: 14px;"></i>
+                        </button>
+                        <a href="{{ url_for('download_file', file_id=file.id) }}" class="btn btn-success btn-sm" title="Download">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Download
+                        </a>
+                        <form action="{{ url_for('delete_file', file_id=file.id) }}" method="POST" style="display: inline;"
+                              onsubmit="event.preventDefault(); confirmDelete(this, '{{ file.original_name }}', false)">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Delete">
+                                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="cloud-off" style="width: 64px; height: 64px;"></i></div>
+        <h4>No files uploaded yet</h4>
+        <p>Drop a file above to get started — it'll be encrypted & distributed instantly.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadProgress = document.getElementById('uploadProgress');
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove('drag-over'); });
+    });
+    dropzone.addEventListener('drop', (e) => { fileInput.files = e.dataTransfer.files; startUpload(); });
+    fileInput.addEventListener('change', () => { if (fileInput.files.length > 0) startUpload(); });
+
+    function startUpload() {
+        uploadProgress.classList.add('active');
+        uploadForm.submit();
+    }
+</script>
+{% endblock %}

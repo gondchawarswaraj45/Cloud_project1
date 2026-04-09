@@ -1,0 +1,47 @@
+{% extends 'layout.html' %}
+{% block title %}Create Account{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card glass-panel">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-glow), var(--primary-glow)); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                <i data-lucide="user-plus" style="width: 24px; height: 24px; color: var(--accent);"></i>
+            </div>
+            <h1 class="auth-title">Join the Cloud</h1>
+            <p class="auth-subtitle">Create your secure storage account</p>
+        </div>
+
+        <form action="{{ url_for('register') }}" method="POST" id="registerForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" name="username" id="username" class="form-control"
+                       placeholder="Choose a username (min. 3 chars)" required autofocus
+                       minlength="3" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password" class="form-control"
+                       placeholder="Create a password (min. 4 chars)" required
+                       minlength="4" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary" id="registerBtn"
+                    style="width: 100%; justify-content: center; padding: 0.85rem; font-size: 0.95rem;">
+                <i data-lucide="rocket" style="width: 16px; height: 16px;"></i>
+                Create Account
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
+        </div>
+
+        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--glass-border);">
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.75rem; line-height: 1.6;">
+                Your files are split into 3 encrypted chunks<br>
+                and distributed securely across storage nodes
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

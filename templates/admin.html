@@ -1,0 +1,152 @@
+{% extends 'layout.html' %}
+{% block title %}Admin Console{% endblock %}
+
+{% block content %}
+<div class="page-header animate-fadeup">
+    <div class="page-title">
+        <div class="page-title-icon" style="background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(248,113,113,0.15));">
+            <i data-lucide="shield-check" style="width: 22px; height: 22px; color: var(--warning);"></i>
+        </div>
+        <div>
+            <h1 style="font-size: 1.5rem;">Administrator Console</h1>
+            <p style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-top: 0.15rem;">
+                Cloud monitoring & user management
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card glass-panel stat-primary animate-fadeup animate-fadeup-1">
+        <div class="stat-header">
+            <div class="stat-label">Total Cloud Space</div>
+            <div class="stat-icon icon-primary"><i data-lucide="cloud" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">{{ total_space|filesize }}</div>
+        <div class="stat-detail">Allocated capacity</div>
+    </div>
+    <div class="stat-card glass-panel stat-success animate-fadeup animate-fadeup-2">
+        <div class="stat-header">
+            <div class="stat-label">Used Space</div>
+            <div class="stat-icon icon-success"><i data-lucide="hard-drive" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">{{ total_used|filesize }}</div>
+        <div class="stat-detail">{{ total_files }} files stored</div>
+    </div>
+    <div class="stat-card glass-panel stat-warning animate-fadeup animate-fadeup-3">
+        <div class="stat-header">
+            <div class="stat-label">Free Space</div>
+            <div class="stat-icon icon-warning"><i data-lucide="database" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">{{ free_space|filesize }}</div>
+        {% set usage_pct = ((total_used / total_space) * 100) if total_space > 0 else 0 %}
+        <div class="stat-detail">{{ "%.1f"|format(usage_pct) }}% used</div>
+    </div>
+    <div class="stat-card glass-panel stat-accent animate-fadeup animate-fadeup-4">
+        <div class="stat-header">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-icon icon-accent"><i data-lucide="users" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="stat-value">{{ total_users }}</div>
+        <div class="stat-detail">Registered accounts</div>
+    </div>
+</div>
+
+<div class="glass-panel animate-fadeup" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <div class="section-title">
+            <i data-lucide="bar-chart-3" style="width: 18px; height: 18px; color: var(--primary);"></i>
+            Cloud Storage Usage
+        </div>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">{{ total_used|filesize }} / {{ total_space|filesize }}</span>
+    </div>
+    <div class="progress-bar">
+        <div class="progress-fill" style="width: {{ usage_pct if usage_pct is defined else 0 }}%;"></div>
+    </div>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+    <div class="section-header" style="margin-bottom: 0.75rem;">
+        <div class="section-title">
+            <i data-lucide="server" style="width: 18px; height: 18px; color: var(--primary);"></i>
+            DataNode Cluster
+        </div>
+        <span class="section-badge">3 Nodes</span>
+    </div>
+    <div class="node-grid">
+        {% for node in storage_info %}
+        <div class="node-card glass-panel animate-fadeup animate-fadeup-{{ loop.index }}">
+            <div class="node-header">
+                <h4>
+                    <i data-lucide="hard-drive" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.25rem; color: var(--primary);"></i>
+                    {{ node.name }}
+                </h4>
+                <span class="badge badge-success">
+                    <span class="status-dot online"></span> ONLINE
+                </span>
+            </div>
+            <div class="node-stats">
+                <div class="node-stat">
+                    <div class="node-stat-label">Chunks</div>
+                    <div class="node-stat-value">{{ node.chunk_count }}</div>
+                </div>
+                <div class="node-stat">
+                    <div class="node-stat-label">Size</div>
+                    <div class="node-stat-value" style="font-size: 0.9rem;">{{ node.size }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="glass-panel animate-fadeup" style="padding: 1.5rem;">
+    <div class="admin-section-title">
+        <i data-lucide="users" style="width: 18px; height: 18px; color: var(--primary);"></i>
+        User List & Storage Usage
+        <span class="section-badge">{{ user_storage|length }} users</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr><th>User</th><th>Role</th><th>Files</th><th>Space Used</th><th>Usage</th></tr>
+        </thead>
+        <tbody>
+            {% for u in user_storage %}
+            <tr>
+                <td>
+                    <div class="file-name">
+                        <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.7rem;">{{ u.username[:2] }}</div>
+                        <span style="font-weight: 600;">{{ u.username }}</span>
+                    </div>
+                </td>
+                <td><span class="badge {{ 'badge-warning' if u.role == 'admin' else 'badge-primary' }}">{{ u.role }}</span></td>
+                <td style="font-weight: 600;">{{ u.file_count }}</td>
+                <td style="font-weight: 600;">{{ u.space_used|filesize }}</td>
+                <td>
+                    {% set user_pct = ((u.space_used / total_space) * 100) if total_space > 0 else 0 %}
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="progress-bar" style="width: 80px; height: 6px;">
+                            <div class="progress-fill" style="width: {{ user_pct }}%;"></div>
+                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ "%.1f"|format(user_pct) }}%</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="glass-panel animate-fadeup" style="padding: 1.5rem; margin-top: 1.5rem;">
+    <div class="admin-section-title">
+        <i data-lucide="settings" style="width: 18px; height: 18px; color: var(--primary);"></i>
+        System Configuration
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+        <div class="node-stat"><div class="node-stat-label">Encryption</div><div class="node-stat-value" style="font-size: 0.9rem;">AES-256-GCM</div></div>
+        <div class="node-stat"><div class="node-stat-label">Split Factor</div><div class="node-stat-value" style="font-size: 0.9rem;">3 Parts</div></div>
+        <div class="node-stat"><div class="node-stat-label">Storage</div><div class="node-stat-value" style="font-size: 0.9rem;">Distributed</div></div>
+        <div class="node-stat"><div class="node-stat-label">Integrity</div><div class="node-stat-value" style="font-size: 0.9rem;">SHA-256</div></div>
+    </div>
+</div>
+{% endblock %}
