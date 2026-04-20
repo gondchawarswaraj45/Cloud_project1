@@ -1,16 +1,23 @@
-import os, math, hashlib
+import os, math, hashlib, boto3
 from encryption_utils import EncryptionUtils
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class FileManager:
-    def __init__(self, storage_path="storage"):
-        self.storage_path = storage_path
-        self.nodes = [
-            os.path.join(storage_path, "node1"),
-            os.path.join(storage_path, "node2"),
-            os.path.join(storage_path, "node3")
-        ]
-        for node in self.nodes:
-            os.makedirs(node, exist_ok=True)
+    def __init__(self):
+        self.bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+        self.region = os.getenv('AWS_REGION', 'us-east-1')
+        
+        # Initialize S3 client
+        self.s3 = boto3.client(
+            's3',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=self.region
+        )
+        
+        self.nodes = ["node1", "node2", "node3"]
 
     def split_and_encrypt_file(self, file_content, filename, user_id, secret_key):
         file_size = len(file_content)
@@ -28,13 +35,17 @@ class FileManager:
             part_name = f"{user_id}_{filename}_part{i + 1}"
             encrypted_chunk = EncryptionUtils.encrypt(chunk, secret_key)
 
-            node_path = os.path.join(self.nodes[i], part_name)
-            with open(node_path, "wb") as f:
-                f.write(encrypted_chunk)
+            # Upload to S3 under node-specific prefix
+            s3_key = f"{self.nodes[i]}/{part_name}"
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Key=s3_key,
+                Body=encrypted_chunk
+            )
 
             parts_meta.append({
                 "part_name": part_name,
-                "node": f"node{i + 1}",
+                "node": self.nodes[i],
                 "order": i + 1,
                 "size": len(encrypted_chunk),
                 "original_chunk_size": len(chunk),
@@ -49,14 +60,13 @@ class FileManager:
         for part in parts_meta:
             part_name = part['part_name']
             node = part['node']
-            node_dir = os.path.join(self.storage_path, node)
-            part_path = os.path.join(node_dir, part_name)
+            s3_key = f"{node}/{part_name}"
 
-            if not os.path.exists(part_path):
-                raise FileNotFoundError(f"Missing chunk: {part_name} in {node}")
-
-            with open(part_path, "rb") as f:
-                encrypted_chunk = f.read()
+            try:
+                response = self.s3.get_object(Bucket=self.bucket_name, Key=s3_key)
+                encrypted_chunk = response['Body'].read()
+            except Exception as e:
+                raise FileNotFoundError(f"Missing chunk in S3: {s3_key}. Error: {str(e)}")
 
             try:
                 decrypted_chunk = EncryptionUtils.decrypt(encrypted_chunk, secret_key)
@@ -69,26 +79,38 @@ class FileManager:
 
     def delete_file_parts(self, filename, user_id, parts_meta):
         for part in parts_meta:
-            part_path = os.path.join(self.storage_path, part['node'], part['part_name'])
-            if os.path.exists(part_path):
-                os.remove(part_path)
+            s3_key = f"{part['node']}/{part['part_name']}"
+            try:
+                self.s3.delete_object(Bucket=self.bucket_name, Key=s3_key)
+            except Exception:
+                pass # Continue even if delete fails
 
     def get_storage_info(self):
         storage_info = []
         for i in range(3):
-            node_dir = self.nodes[i]
-            chunks = os.listdir(node_dir) if os.path.exists(node_dir) else []
-            total_size = sum(
-                os.path.getsize(os.path.join(node_dir, f))
-                for f in chunks if os.path.isfile(os.path.join(node_dir, f))
-            )
-            storage_info.append({
-                "name": f"Node {i + 1}",
-                "node_id": f"node{i + 1}",
-                "chunk_count": len(chunks),
-                "chunks": chunks[:15],
-                "size": self._fmt(total_size),
-            })
+            node_prefix = f"{self.nodes[i]}/"
+            try:
+                response = self.s3.list_objects_v2(Bucket=self.bucket_name, Prefix=node_prefix)
+                objects = response.get('Contents', [])
+                total_size = sum(obj['Size'] for obj in objects)
+                chunks = [obj['Key'].split('/')[-1] for obj in objects]
+                
+                storage_info.append({
+                    "name": f"AWS S3 Node {i + 1}",
+                    "node_id": self.nodes[i],
+                    "chunk_count": len(objects),
+                    "chunks": chunks[:15],
+                    "size": self._fmt(total_size),
+                })
+            except Exception as e:
+                storage_info.append({
+                    "name": f"AWS S3 Node {i + 1}",
+                    "node_id": self.nodes[i],
+                    "chunk_count": 0,
+                    "chunks": [],
+                    "size": "Error connecting",
+                    "error": str(e)
+                })
         return storage_info
 
     @staticmethod

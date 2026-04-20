@@ -19,3 +19,4 @@ node1/
 node2/
 node3/
 test_e2e.py
+*.csv
